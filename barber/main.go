@@ -56,10 +56,8 @@ func (bs *BarberShop) runBarbers() {
 				fmt.Printf("Customer %d left because the waiting room is full\n", customer.id)
 			}
 		case <-bs.closingTimeSignal:
-			if bs.barbersBusy == 0 && len(bs.waitingRoom) == 0 {
-				close(bs.customers)
-				return
-			}
+			close(bs.customers)
+			return
 		}
 	}
 }
@@ -91,7 +89,6 @@ func (bs *BarberShop) generateCustomers() {
 		case bs.customers <- &Customer{id: i}:
 			time.Sleep(time.Duration(1) * time.Second)
 		case <-bs.closingTimeSignal:
-			bs.wg.Wait()
 			close(bs.customers)
 			return
 		}
