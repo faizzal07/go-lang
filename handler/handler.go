@@ -1,4 +1,4 @@
-package main
+package handler
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ const (
 )
 
 type Customer struct {
-	id int
+	Id int
 }
 
 type BarberShop struct {
@@ -24,7 +24,7 @@ type BarberShop struct {
 	barbersAvailable  int
 	barbersBusy       int
 	closingTimeSignal chan bool
-	wg                sync.WaitGroup
+	Wg                sync.WaitGroup
 }
 
 func NewBarberShop() *BarberShop {
@@ -37,7 +37,7 @@ func NewBarberShop() *BarberShop {
 	}
 }
 
-func (bs *BarberShop) runBarbers() {
+func (bs *BarberShop) RunBarbers() {
 	for {
 		select {
 		case customer := <-bs.customers:
@@ -46,14 +46,14 @@ func (bs *BarberShop) runBarbers() {
 				bs.barbersAvailable--
 				bs.barbersBusy++
 				bs.mu.Unlock()
-				bs.wg.Add(1)
+				bs.Wg.Add(1)
 				go bs.barberHandler(customer)
 			} else if len(bs.waitingRoom) < numWaitingChairs {
 				bs.mu.Unlock()
 				bs.handleOverflow(customer)
 			} else {
 				bs.mu.Unlock()
-				fmt.Printf("Customer %d left because the waiting room is full\n", customer.id)
+				fmt.Printf("Customer %d left because the waiting room is full\n", customer.Id)
 			}
 		case <-bs.closingTimeSignal:
 			close(bs.customers)
@@ -63,9 +63,9 @@ func (bs *BarberShop) runBarbers() {
 }
 
 func (bs *BarberShop) barberHandler(customer *Customer) {
-	defer bs.wg.Done()
+	defer bs.Wg.Done()
 	time.Sleep(time.Duration(4) * time.Second)
-	fmt.Printf("Barber %d finished cutting hair for Customer %d\n", rand.Intn(numBarbers), customer.id)
+	fmt.Printf("Barber %d finished cutting hair for Customer %d\n", rand.Intn(numBarbers), customer.Id)
 
 	bs.mu.Lock()
 	bs.barbersAvailable++
@@ -76,17 +76,17 @@ func (bs *BarberShop) barberHandler(customer *Customer) {
 		bs.barbersAvailable--
 		bs.barbersBusy++
 		bs.mu.Unlock()
-		bs.wg.Add(1)
+		bs.Wg.Add(1)
 		go bs.barberHandler(waitingCustomer)
 	default:
 		bs.mu.Unlock()
 	}
 }
 
-func (bs *BarberShop) generateCustomers() {
+func (bs *BarberShop) GenerateCustomers() {
 	for i := 1; i < 10; i++ {
 		select {
-		case bs.customers <- &Customer{id: i}:
+		case bs.customers <- &Customer{Id: i}:
 			time.Sleep(time.Duration(1) * time.Second)
 		case <-bs.closingTimeSignal:
 			close(bs.customers)
@@ -102,30 +102,17 @@ func (bs *BarberShop) handleOverflow(customer *Customer) {
 	if bs.barbersBusy < numBarbers {
 		bs.barbersBusy++
 		bs.barbersAvailable--
-		bs.wg.Add(1)
+		bs.Wg.Add(1)
 		go bs.barberHandler(customer)
 	} else if len(bs.waitingRoom) < numWaitingChairs {
 		bs.waitingRoom <- customer
-		fmt.Printf("Customer %d is waiting in the waiting room\n", customer.id)
+		fmt.Printf("Customer %d is waiting in the waiting room\n", customer.Id)
 	} else {
-		fmt.Printf("Customer %d left because the waiting room is full\n", customer.id)
+		fmt.Printf("Customer %d left because the waiting room is full\n", customer.Id)
 	}
 }
 
-func (bs *BarberShop) closeShop() {
+func (bs *BarberShop) CloseShop() {
 	fmt.Println("Barber shop is closing.")
 	close(bs.closingTimeSignal)
-}
-
-func main() {
-	shop := NewBarberShop()
-
-	go shop.runBarbers()
-	go shop.generateCustomers()
-
-	time.Sleep(closingTime)
-	shop.closeShop()
-
-	shop.wg.Wait()
-	fmt.Println("Barber shop is closed.")
 }
